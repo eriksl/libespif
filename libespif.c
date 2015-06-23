@@ -39,66 +39,64 @@ static int resolve(const char * hostname, int port, struct sockaddr_in6 *saddr)
 	return(1);
 }
 
-static int espif_error(int rv, size_t buflen, char *buf, const char *host, const char *error)
+static int espif_error(int rv, size_t buflen, char *buf, const char *hostname, const char *error)
 {
-	snprintf(buf, buflen, "%s: %s (%m)", host, error);
+	snprintf(buf, buflen, "%s: %s (%m)", hostname, error);
 	return(rv);
 }
 
-int espif(const espif_setup *setup, const char *host, const char *cmd, size_t buflen, char *buf)
+static int espif_connect(const espif_setup *setup, const struct sockaddr_in6 *saddr)
 {
-	int attempt, fd, current;
-	struct sockaddr_in6	saddr;
+	int fd, attempt;
 	struct pollfd pfd;
-	uint8_t first;
-	ssize_t bufread;
-
-	if(!resolve(host, 23, &saddr))
-		return(espif_error(-1, buflen, buf, host, "cannot resolve"));
-
-	fd = -1;
+	int so_error;
+	socklen_t so_size;
 
 	for(attempt = setup->conntr; attempt > 0; attempt--)
 	{
 		if((fd = socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0)
-			return(espif_error(-1, buflen, buf, host, "cannot create socket"));
+		{
+			if(setup->verbose)
+				fprintf(stderr, "libespif: socket failed (%m)\n");
 
-		pfd.fd = fd;
-		pfd.events = POLLOUT;
+			usleep(1000 * setup->retrydelay);
+			continue;
+		}
 
-		errno = 0;
-
-		if(connect(fd, (const struct sockaddr *)&saddr, sizeof(saddr)) && (errno != EINPROGRESS))
+		if(connect(fd, (const struct sockaddr *)saddr, sizeof(*saddr)) && (errno != EINPROGRESS))
 		{
 			if(setup->verbose)
 				fprintf(stderr, "libespif: connect failed (%m)\n");
 
-			goto retry_connect;
+			close(fd);
+			usleep(1000 * setup->retrydelay);
+			continue;
 		}
 
-		if(setup->verbose)
-			fprintf(stderr, "libespif: before connect poll\n");
+		pfd.fd = fd;
+		pfd.events = POLLOUT;
 
 		if(poll(&pfd, 1, setup->connto) != 1)
 		{
 			if(setup->verbose)
 				fprintf(stderr, "libespif: poll failed (%m)\n");
 
-			goto retry_connect;
+			close(fd);
+			usleep(1000 * setup->retrydelay);
+			continue;
 		}
 
-		if(setup->verbose)
-			fprintf(stderr, "libespif: after connect poll\n");
-
-		int so_error = 0;
-		socklen_t so_size = sizeof(so_error);
+		so_error = 0;
+		so_size = sizeof(so_error);
 
 		if(getsockopt(fd, SOL_SOCKET, SO_ERROR, &so_error, &so_size) < 0)
 		{
 			if(setup->verbose)
 				fprintf(stderr, "libespif: getsockopt failed (%m)\n");
 
-			goto retry_connect;
+			close(fd);
+			usleep(1000 * setup->retrydelay);
+			continue;
 		}
 
 		if(so_error != 0)
@@ -106,45 +104,62 @@ int espif(const espif_setup *setup, const char *host, const char *cmd, size_t bu
 			if(setup->verbose)
 				fprintf(stderr, "libespif: so_error failed (%m)\n");
 
-			goto retry_connect;
+			close(fd);
+			usleep(1000 * setup->retrydelay);
+			continue;
 		}
 
 		break;
-
-retry_connect:
-
-		close(fd);
-
-		usleep(setup->connto * 1000);
-
-		if(setup->verbose)
-			fprintf(stderr, "libespif: retry connect, attempt %d\n", attempt);
 	}
 
-	if((attempt == 0) && (fd >= 0))
-	{
-		close(fd);
-		fd = -1;
-	}
+	if(attempt < 1)
+		return(-1);
 
-	if((attempt == 0) || (fd < 0))
-		return(espif_error(-1, buflen, buf, host, "no more attempts"));
+	return(fd);
+}
 
-	pfd.fd = fd;
+int espif(const espif_setup *setup, const char *hostname, const char *cmd, size_t buflen, char *buf)
+{
+	int attempt, fd, current;
+	struct sockaddr_in6	saddr;
+	struct pollfd pfd;
+	uint8_t first;
+	ssize_t bufread;
+
+	if(!resolve(hostname, 23, &saddr))
+		return(espif_error(-1, buflen, buf, hostname, "cannot resolve"));
+
+	fd = -1;
 
 	for(attempt = setup->sendtr; attempt > 0; attempt--)
 	{
+		if((fd = espif_connect(setup, &saddr)) < 0)
+		{
+			if(setup->verbose)
+				fprintf(stderr, "libespif: retry connect, attempt %d\n", attempt);
+
+			usleep(setup->retrydelay * 1000);
+			continue;
+		}
+
+		pfd.fd = fd;
 		pfd.events = POLLOUT;
 
 		if(poll(&pfd, 1, setup->connto) != 1)
 		{
-			fprintf(stderr, "libespif: poll error (%m)\n");
+			if(setup->verbose)
+				fprintf(stderr, "libespif: poll error (%m)\n");
+
+			usleep(setup->retrydelay * 1000);
 			continue;
 		}
 
 		if(write(fd, cmd, strlen(cmd)) != strlen(cmd))
 		{
-			fprintf(stderr, "libespif: write error (%m)\n");
+			if(setup->verbose)
+				fprintf(stderr, "libespif: write error (%m)\n");
+
+			usleep(setup->retrydelay * 1000);
 			continue;
 		}
 
@@ -156,7 +171,7 @@ retry_connect:
 			if(poll(&pfd, 1, first ? setup->recvto1 : setup->recvto2) != 1)
 			{
 				if(first)
-					goto retry_read;
+					goto no_read;
 				else
 					break;
 			}
@@ -164,7 +179,7 @@ retry_connect:
 			if((bufread = read(fd, buf + current, buflen - current)) <= 0)
 			{
 				if(first)
-					goto retry_read;
+					goto no_read;
 				else
 					break;
 			}
@@ -178,11 +193,12 @@ retry_connect:
 
 		return(0);
 
-retry_read:
+no_read:
 		if(setup->verbose)
 			fprintf(stderr, "libespif: retry read/write, attempt %d\n", attempt);
+		usleep(1000 * setup->retrydelay);
 	}
 
 	close(fd);
-	return(espif_error(-1, buflen, buf, host, "no more write attempts"));
+	return(espif_error(-1, buflen, buf, hostname, "no more write attempts"));
 }

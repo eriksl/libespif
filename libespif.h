@@ -8,6 +8,7 @@ typedef struct
 	int	conntr;		// connection attempts
 	int recvto1;	// initial receive timeout
 	int	recvto2;	// receive timeout for next segments
+	int retrydelay;	// retry delay
 	int	sendtr;		// attempts at sending
 } espif_setup;
 

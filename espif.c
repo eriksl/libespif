@@ -16,12 +16,13 @@
 static void usage(void)
 {
 	fprintf(stderr, "usage: espif [options] host string [string...]\n");
-	fprintf(stderr, "-C|--conntr    set connect attempts [4]\n");
-	fprintf(stderr, "-c|--connto    set connect / send timeout in milliseconds [2000]\n");
-	fprintf(stderr, "-r|--recvto1   set initial receive timeout in milliseconds [2000]\n");
-	fprintf(stderr, "-R|--recvto2   set subsequent receive timeout in milliseconds [100]\n");
-	fprintf(stderr, "-s|--sendtr    set send/receive retries [8]\n");
-	fprintf(stderr, "-v|--verbose   enable verbose output on stderr\n");
+	fprintf(stderr, "-C|--conntr       set connect attempts [8]\n");
+	fprintf(stderr, "-c|--connto       set connect / send timeout in milliseconds [2000]\n");
+	fprintf(stderr, "-d|--retrydelay   set delay in milliseconds before earch retry [200]\n");
+	fprintf(stderr, "-r|--recvto1      set initial receive timeout in milliseconds [2000]\n");
+	fprintf(stderr, "-R|--recvto2      set subsequent receive timeout in milliseconds [100]\n");
+	fprintf(stderr, "-s|--sendtr       set send/receive retries [16]\n");
+	fprintf(stderr, "-v|--verbose      enable verbose output on stderr\n");
 }
 
 int main(int argc, char ** argv)
@@ -29,12 +30,13 @@ int main(int argc, char ** argv)
 	static const char *shortopts = "C:c:R:r:s:v";
 	static const struct option longopts[] =
 	{
-		{ "conntr", required_argument, 0, 'C' },
-		{ "connto", required_argument, 0, 'c' },
-		{ "recvto2", required_argument, 0, 'R' },
-		{ "recvto1", required_argument, 0, 'r' },
-		{ "sendtr", required_argument, 0, 's' },
-		{ "verbose", no_argument, 0, 'v' },
+		{ "conntr",		required_argument, 0, 'C' },
+		{ "connto",		required_argument, 0, 'c' },
+		{ "recvto2",	required_argument, 0, 'R' },
+		{ "recvto1",	required_argument, 0, 'r' },
+		{ "retrydelay", required_argument, 0, 'd' },
+		{ "sendtr",		required_argument, 0, 's' },
+		{ "verbose",	no_argument, 0, 'v' },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -44,10 +46,11 @@ int main(int argc, char ** argv)
 	{
 		.verbose = 0,
 		.connto = 2000,
-		.conntr = 4,
+		.conntr = 8,
 		.recvto1 = 2000,
 		.recvto2 = 100,
-		.sendtr = 8,
+		.retrydelay = 200,
+		.sendtr = 16,
 	};
 
 	while((arg = getopt_long(argc, argv, shortopts, longopts, 0)) != -1)
@@ -64,6 +67,13 @@ int main(int argc, char ** argv)
 			case('c'):
 			{
 				setup.connto = atoi(optarg);
+
+				break;
+			}
+
+			case('d'):
+			{
+				setup.retrydelay = atoi(optarg);
 
 				break;
 			}
