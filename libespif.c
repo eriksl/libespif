@@ -126,7 +126,7 @@ int espif(const espif_setup *setup, const char *hostname, const char *cmd, size_
 	uint8_t first;
 	ssize_t bufread;
 
-	if(!resolve(hostname, 23, &saddr))
+	if(!resolve(hostname, setup->port, &saddr))
 		return(espif_error(-1, buflen, buf, hostname, "cannot resolve"));
 
 	fd = -1;

@@ -10,6 +10,7 @@ typedef struct
 	int	recvto2;	// receive timeout for next segments
 	int retrydelay;	// retry delay
 	int	sendtr;		// attempts at sending
+	int	port;
 } espif_setup;
 
 int espif(const espif_setup *setup, const char *host,

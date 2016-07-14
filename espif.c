@@ -19,6 +19,7 @@ static void usage(void)
 	fprintf(stderr, "-C|--conntr       set connect attempts [8]\n");
 	fprintf(stderr, "-c|--connto       set connect / send timeout in milliseconds [2000]\n");
 	fprintf(stderr, "-d|--retrydelay   set delay in milliseconds before earch retry [200]\n");
+	fprintf(stderr, "-p|--port         set port (default 24)\n");
 	fprintf(stderr, "-r|--recvto1      set initial receive timeout in milliseconds [2000]\n");
 	fprintf(stderr, "-R|--recvto2      set subsequent receive timeout in milliseconds [100]\n");
 	fprintf(stderr, "-s|--sendtr       set send/receive retries [16]\n");
@@ -27,11 +28,12 @@ static void usage(void)
 
 int main(int argc, char ** argv)
 {
-	static const char *shortopts = "C:c:R:r:s:v";
+	static const char *shortopts = "C:c:R:r:p:s:v";
 	static const struct option longopts[] =
 	{
 		{ "conntr",		required_argument, 0, 'C' },
 		{ "connto",		required_argument, 0, 'c' },
+		{ "port",		required_argument, 0, 'p' },
 		{ "recvto2",	required_argument, 0, 'R' },
 		{ "recvto1",	required_argument, 0, 'r' },
 		{ "retrydelay", required_argument, 0, 'd' },
@@ -47,6 +49,7 @@ int main(int argc, char ** argv)
 		.verbose = 0,
 		.connto = 2000,
 		.conntr = 8,
+		.port = 24,
 		.recvto1 = 2000,
 		.recvto2 = 100,
 		.retrydelay = 200,
@@ -74,6 +77,13 @@ int main(int argc, char ** argv)
 			case('d'):
 			{
 				setup.retrydelay = atoi(optarg);
+
+				break;
+			}
+
+			case('p'):
+			{
+				setup.port = atoi(optarg);
 
 				break;
 			}
