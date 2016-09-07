@@ -15,7 +15,7 @@
 
 static void usage(void)
 {
-	fprintf(stderr, "usage: espif [options] host string [string...]\n");
+	fprintf(stderr, "usage: espif [options] host string...\n");
 	fprintf(stderr, "-C|--conntr       set connect attempts [8]\n");
 	fprintf(stderr, "-c|--connto       set connect / send timeout in milliseconds [2000]\n");
 	fprintf(stderr, "-d|--retrydelay   set delay in milliseconds before earch retry [200]\n");
@@ -129,15 +129,23 @@ int main(int argc, char ** argv)
 		exit(1);
 	}
 
+	buffer[0] = '\0';
+
 	for(arg = optind + 1; argv[arg]; arg++)
 	{
-		snprintf(buffer, sizeof(buffer), "%s\r\n", argv[arg]);
-
-		if(espif(&setup, argv[optind], buffer, sizeof(buffer), buffer))
-			printf("ERROR: %s\n", buffer);
-		else
-			printf("%s\n", buffer);
+		strncat(buffer, argv[arg], sizeof(buffer));
+		buffer[sizeof(buffer) - 1] = '\0';
+		strncat(buffer, " ", sizeof(buffer));
+		buffer[sizeof(buffer) - 1] = '\0';
 	}
+
+	strncat(buffer, "\r\n", sizeof(buffer));
+	buffer[sizeof(buffer) - 1] = '\0';
+
+	if(espif(&setup, argv[optind], buffer, sizeof(buffer), buffer))
+		printf("ERROR: %s\n", buffer);
+	else
+		printf("%s\n", buffer);
 
 	return(0);
 }
