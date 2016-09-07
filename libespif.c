@@ -28,10 +28,7 @@ static int resolve(const char * hostname, int port, struct sockaddr_in6 *saddr)
 	hints.ai_flags		=	AI_NUMERICSERV | AI_V4MAPPED;
 
 	if((s = getaddrinfo(hostname, service, &hints, &res)))
-	{
-		freeaddrinfo(res);
 		return(0);
-	}
 
 	*saddr = *(struct sockaddr_in6 *)res->ai_addr;
 	freeaddrinfo(res);

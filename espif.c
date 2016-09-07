@@ -123,7 +123,7 @@ int main(int argc, char ** argv)
 		}
 	}
 
-	if((argc - optind) <= 0)
+	if((argc - optind) <= 1)
 	{
 		usage();
 		exit(1);
