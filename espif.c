@@ -48,10 +48,10 @@ int main(int argc, char ** argv)
 	{
 		.verbose = 0,
 		.connto = 1000,
-		.conntr = 4,
+		.conntr = 2,
 		.port = 24,
 		.recvto1 = 1000,
-		.recvto2 = 100,
+		.recvto2 = 10,
 		.retrydelay = 100,
 		.sendtr = 4,
 	};
