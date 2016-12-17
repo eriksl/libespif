@@ -13,16 +13,16 @@
 
 #include "libespif.h"
 
-static void usage(void)
+static void usage(const espif_setup *setup)
 {
 	fprintf(stderr, "usage: espif [options] host string...\n");
-	fprintf(stderr, "-C|--conntr       set connect attempts [8]\n");
-	fprintf(stderr, "-c|--connto       set connect / send timeout in milliseconds [2000]\n");
-	fprintf(stderr, "-d|--retrydelay   set delay in milliseconds before earch retry [200]\n");
-	fprintf(stderr, "-p|--port         set port (default 24)\n");
-	fprintf(stderr, "-r|--recvto1      set initial receive timeout in milliseconds [2000]\n");
-	fprintf(stderr, "-R|--recvto2      set subsequent receive timeout in milliseconds [100]\n");
-	fprintf(stderr, "-s|--sendtr       set send/receive retries [16]\n");
+	fprintf(stderr, "-C|--conntr       set connect attempts [%d]\n", setup->conntr);
+	fprintf(stderr, "-c|--connto       set connect / send timeout in milliseconds [%d]\n", setup->connto);
+	fprintf(stderr, "-d|--retrydelay   set delay in milliseconds before earch retry [%d]\n", setup->retrydelay);
+	fprintf(stderr, "-p|--port         set port [%d]\n", setup->port);
+	fprintf(stderr, "-r|--recvto1      set initial receive timeout in milliseconds [%d]\n", setup->recvto1);
+	fprintf(stderr, "-R|--recvto2      set subsequent receive timeout in milliseconds [%d]\n", setup->recvto2);
+	fprintf(stderr, "-s|--sendtr       set send/receive retries [%d]\n", setup->sendtr);
 	fprintf(stderr, "-v|--verbose      enable verbose output on stderr\n");
 }
 
@@ -47,13 +47,13 @@ int main(int argc, char ** argv)
 	espif_setup	setup =
 	{
 		.verbose = 0,
-		.connto = 2000,
-		.conntr = 8,
+		.connto = 1000,
+		.conntr = 4,
 		.port = 24,
-		.recvto1 = 2000,
+		.recvto1 = 1000,
 		.recvto2 = 100,
-		.retrydelay = 200,
-		.sendtr = 16,
+		.retrydelay = 100,
+		.sendtr = 4,
 	};
 
 	while((arg = getopt_long(argc, argv, shortopts, longopts, 0)) != -1)
@@ -117,7 +117,7 @@ int main(int argc, char ** argv)
 
 			default:
 			{
-				usage();
+				usage(&setup);
 				exit(1);
 			}
 		}
@@ -125,7 +125,7 @@ int main(int argc, char ** argv)
 
 	if((argc - optind) <= 1)
 	{
-		usage();
+		usage(&setup);
 		exit(1);
 	}
 
@@ -133,9 +133,13 @@ int main(int argc, char ** argv)
 
 	for(arg = optind + 1; argv[arg]; arg++)
 	{
+		if(strlen(buffer) > 0)
+		{
+			strncat(buffer, " ", sizeof(buffer));
+			buffer[sizeof(buffer) - 1] = '\0';
+		}
+
 		strncat(buffer, argv[arg], sizeof(buffer));
-		buffer[sizeof(buffer) - 1] = '\0';
-		strncat(buffer, " ", sizeof(buffer));
 		buffer[sizeof(buffer) - 1] = '\0';
 	}
 

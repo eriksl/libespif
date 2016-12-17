@@ -10,6 +10,7 @@
 #include <netdb.h>
 #include <poll.h>
 #include <getopt.h>
+#include <stdbool.h>
 
 #include "libespif.h"
 
@@ -24,7 +25,7 @@ static int resolve(const char * hostname, int port, struct sockaddr_in6 *saddr)
 	memset(&hints, 0, sizeof(hints));
 
 	hints.ai_family		=	AF_INET6;
-	hints.ai_socktype	=	SOCK_STREAM;
+	hints.ai_socktype	=	SOCK_DGRAM;
 	hints.ai_flags		=	AI_NUMERICSERV | AI_V4MAPPED;
 
 	if((s = getaddrinfo(hostname, service, &hints, &res)))
@@ -48,16 +49,21 @@ static int espif_connect(const espif_setup *setup, const struct sockaddr_in6 *sa
 	struct pollfd pfd;
 	int so_error;
 	socklen_t so_size;
+	bool using_tcp;
 
 	for(attempt = setup->conntr; attempt > 0; attempt--)
 	{
-		if((fd = socket(AF_INET6, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0)
+		using_tcp = attempt < (setup->conntr / 2);
+
+		if(setup->verbose)
+			fprintf(stderr, "libespif: trying to connect using %s, attempt #%d\n", using_tcp ? "TCP" : "UDP", attempt);
+
+		if((fd = socket(AF_INET6, (using_tcp ? SOCK_STREAM : SOCK_DGRAM) | SOCK_NONBLOCK, 0)) < 0)
 		{
 			if(setup->verbose)
-				fprintf(stderr, "libespif: socket failed (%m)\n");
+				fprintf(stderr, "libespif: tcp socket failed (%m)\n");
 
-			usleep(1000 * setup->retrydelay);
-			continue;
+			goto next_try;
 		}
 
 		if(connect(fd, (const struct sockaddr *)saddr, sizeof(*saddr)) && (errno != EINPROGRESS))
@@ -66,8 +72,7 @@ static int espif_connect(const espif_setup *setup, const struct sockaddr_in6 *sa
 				fprintf(stderr, "libespif: connect failed (%m)\n");
 
 			close(fd);
-			usleep(1000 * setup->retrydelay);
-			continue;
+			goto next_try;
 		}
 
 		pfd.fd = fd;
@@ -79,8 +84,7 @@ static int espif_connect(const espif_setup *setup, const struct sockaddr_in6 *sa
 				fprintf(stderr, "libespif: poll failed (%m)\n");
 
 			close(fd);
-			usleep(1000 * setup->retrydelay);
-			continue;
+			goto next_try;
 		}
 
 		so_error = 0;
@@ -92,8 +96,7 @@ static int espif_connect(const espif_setup *setup, const struct sockaddr_in6 *sa
 				fprintf(stderr, "libespif: getsockopt failed (%m)\n");
 
 			close(fd);
-			usleep(1000 * setup->retrydelay);
-			continue;
+			goto next_try;
 		}
 
 		if(so_error != 0)
@@ -102,11 +105,13 @@ static int espif_connect(const espif_setup *setup, const struct sockaddr_in6 *sa
 				fprintf(stderr, "libespif: so_error failed (%m)\n");
 
 			close(fd);
-			usleep(1000 * setup->retrydelay);
-			continue;
+			goto next_try;
 		}
 
 		break;
+
+next_try:
+		usleep(1000 * setup->retrydelay);
 	}
 
 	if(attempt < 1)
@@ -135,8 +140,7 @@ int espif(const espif_setup *setup, const char *hostname, const char *cmd, size_
 			if(setup->verbose)
 				fprintf(stderr, "libespif: retry connect, attempt %d\n", attempt);
 
-			usleep(setup->retrydelay * 1000);
-			continue;
+			goto next_try;
 		}
 
 		pfd.fd = fd;
@@ -147,8 +151,7 @@ int espif(const espif_setup *setup, const char *hostname, const char *cmd, size_
 			if(setup->verbose)
 				fprintf(stderr, "libespif: poll error (%m)\n");
 
-			usleep(setup->retrydelay * 1000);
-			continue;
+			goto next_try;
 		}
 
 		if(write(fd, cmd, strlen(cmd)) != strlen(cmd))
@@ -156,8 +159,7 @@ int espif(const espif_setup *setup, const char *hostname, const char *cmd, size_
 			if(setup->verbose)
 				fprintf(stderr, "libespif: write error (%m)\n");
 
-			usleep(setup->retrydelay * 1000);
-			continue;
+			goto next_try;
 		}
 
 		pfd.events = POLLIN;
@@ -168,7 +170,7 @@ int espif(const espif_setup *setup, const char *hostname, const char *cmd, size_
 			if(poll(&pfd, 1, first ? setup->recvto1 : setup->recvto2) != 1)
 			{
 				if(first)
-					goto no_read;
+					goto next_try;
 				else
 					break;
 			}
@@ -176,7 +178,7 @@ int espif(const espif_setup *setup, const char *hostname, const char *cmd, size_
 			if((bufread = read(fd, buf + current, buflen - current)) <= 0)
 			{
 				if(first)
-					goto no_read;
+					goto next_try;
 				else
 					break;
 			}
@@ -190,9 +192,10 @@ int espif(const espif_setup *setup, const char *hostname, const char *cmd, size_
 
 		return(0);
 
-no_read:
+next_try:
 		if(setup->verbose)
 			fprintf(stderr, "libespif: retry read/write, attempt %d\n", attempt);
+
 		usleep(1000 * setup->retrydelay);
 	}
 

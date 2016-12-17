@@ -7,7 +7,7 @@ HLIB = libespif.h
 EXE  = espif
 
 %.o:		%.c
-			gcc -c -Wall -O3 $< -o $@
+			gcc --std=gnu11 -c -Wall -O3 $< -o $@
 
 all:		$(EXE) $(ALIB)
 
