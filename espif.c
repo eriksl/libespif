@@ -19,26 +19,32 @@ static void usage(const espif_setup *setup)
 	fprintf(stderr, "-C|--conntr       set connect attempts [%d]\n", setup->conntr);
 	fprintf(stderr, "-c|--connto       set connect / send timeout in milliseconds [%d]\n", setup->connto);
 	fprintf(stderr, "-d|--retrydelay   set delay in milliseconds before earch retry [%d]\n", setup->retrydelay);
+	fprintf(stderr, "-m|--multicast    use multicast [%d]\n", setup->use_multicast);
 	fprintf(stderr, "-p|--port         set port [%d]\n", setup->port);
 	fprintf(stderr, "-r|--recvto1      set initial receive timeout in milliseconds [%d]\n", setup->recvto1);
 	fprintf(stderr, "-R|--recvto2      set subsequent receive timeout in milliseconds [%d]\n", setup->recvto2);
 	fprintf(stderr, "-s|--sendtr       set send/receive retries [%d]\n", setup->sendtr);
-	fprintf(stderr, "-v|--verbose      enable verbose output on stderr\n");
+	fprintf(stderr, "-t|--tcp          force use of tcp [%d]\n", setup->force_tcp);
+	fprintf(stderr, "-u|--udp          force use of udp [%d]\n", setup->force_udp);
+	fprintf(stderr, "-v|--verbose      enable verbose output on stderr [%d]\n", setup->use_multicast);
 }
 
 int main(int argc, char ** argv)
 {
-	static const char *shortopts = "C:c:R:r:p:s:v";
+	static const char *shortopts = "C:c:mR:r:p:s:tuv";
 	static const struct option longopts[] =
 	{
-		{ "conntr",		required_argument, 0, 'C' },
-		{ "connto",		required_argument, 0, 'c' },
-		{ "port",		required_argument, 0, 'p' },
-		{ "recvto2",	required_argument, 0, 'R' },
-		{ "recvto1",	required_argument, 0, 'r' },
-		{ "retrydelay", required_argument, 0, 'd' },
-		{ "sendtr",		required_argument, 0, 's' },
-		{ "verbose",	no_argument, 0, 'v' },
+		{ "conntr",		required_argument,	0, 'C' },
+		{ "connto",		required_argument,	0, 'c' },
+		{ "port",		required_argument,	0, 'p' },
+		{ "multicast",	no_argument,		0, 'm' },
+		{ "recvto2",	required_argument,	0, 'R' },
+		{ "recvto1",	required_argument,	0, 'r' },
+		{ "retrydelay", required_argument,	0, 'd' },
+		{ "sendtr",		required_argument,	0, 's' },
+		{ "tcp",		no_argument,		0, 't' },
+		{ "udp",		no_argument,		0, 'u' },
+		{ "verbose",	no_argument,		0, 'v' },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -49,10 +55,13 @@ int main(int argc, char ** argv)
 		.verbose = 0,
 		.connto = 1000,
 		.conntr = 2,
+		.use_multicast = false,
 		.port = 24,
 		.recvto1 = 1000,
 		.recvto2 = 10,
 		.retrydelay = 100,
+		.force_tcp = false,
+		.force_udp = false,
 		.sendtr = 4,
 	};
 
@@ -81,6 +90,14 @@ int main(int argc, char ** argv)
 				break;
 			}
 
+			case('m'):
+			{
+				setup.use_multicast = true;
+				setup.force_udp = true;
+				setup.force_tcp = false;
+				break;
+			}
+
 			case('p'):
 			{
 				setup.port = atoi(optarg);
@@ -105,6 +122,20 @@ int main(int argc, char ** argv)
 			case('s'):
 			{
 				setup.sendtr = atoi(optarg);
+
+				break;
+			}
+
+			case('t'):
+			{
+				setup.force_tcp = 1;
+
+				break;
+			}
+
+			case('u'):
+			{
+				setup.force_udp = 1;
 
 				break;
 			}
