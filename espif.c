@@ -58,7 +58,7 @@ int main(int argc, char ** argv)
 		.use_multicast = false,
 		.port = 24,
 		.recvto1 = 1000,
-		.recvto2 = 10,
+		.recvto2 = 50,
 		.retrydelay = 100,
 		.force_tcp = false,
 		.force_udp = false,
