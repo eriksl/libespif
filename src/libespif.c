@@ -331,6 +331,9 @@ int espif(const espif_setup *setup, const char *hostname, const char *cmd, size_
 					break;
 			}
 
+			if(!using_tcp && (bufread == 1) && (buf[current] == '\0'))
+				break;
+
 			current += bufread;
 		}
 

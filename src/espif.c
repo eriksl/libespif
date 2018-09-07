@@ -57,9 +57,9 @@ int main(int argc, char ** argv)
 		.conntr = 2,
 		.use_multicast = false,
 		.port = 24,
-		.recvto1 = 1000,
-		.recvto2 = 50,
-		.retrydelay = 100,
+		.recvto1 = 2000,
+		.recvto2 = 100,
+		.retrydelay = 200,
 		.force_tcp = false,
 		.force_udp = false,
 		.sendtr = 4,
@@ -166,15 +166,15 @@ int main(int argc, char ** argv)
 	{
 		if(strlen(buffer) > 0)
 		{
-			strncat(buffer, " ", sizeof(buffer));
+			strncat(buffer, " ", sizeof(buffer) - 1);
 			buffer[sizeof(buffer) - 1] = '\0';
 		}
 
-		strncat(buffer, argv[arg], sizeof(buffer));
+		strncat(buffer, argv[arg], sizeof(buffer) - 1);
 		buffer[sizeof(buffer) - 1] = '\0';
 	}
 
-	strncat(buffer, "\r\n", sizeof(buffer));
+	strncat(buffer, "\r\n", sizeof(buffer) - 1);
 	buffer[sizeof(buffer) - 1] = '\0';
 
 	if(espif(&setup, argv[optind], buffer, sizeof(buffer), buffer))
